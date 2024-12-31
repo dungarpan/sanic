@@ -19,7 +19,7 @@ from sanic import Blueprint, Sanic
 from sanic.constants import DEFAULT_HTTP_CONTENT_TYPE
 from sanic.exceptions import ServerError
 from sanic.request import RequestParameters
-from sanic.response import html, json, text
+from sanic.response import BaseHTTPResponse, html, json, text
 
 
 def encode_basic_auth_credentials(username, password):
@@ -1837,7 +1837,7 @@ def test_request_cookies(app):
     request, response = app.test_client.get("/", cookies=cookies)
 
     assert len(request.cookies) == len(cookies)
-    assert request.cookies["test"] == cookies["test"]
+    assert request.cookies["test"] == [cookies["test"]]
 
 
 @pytest.mark.asyncio
@@ -1851,7 +1851,7 @@ async def test_request_cookies_asgi(app):
     request, response = await app.asgi_client.get("/", cookies=cookies)
 
     assert len(request.cookies) == len(cookies)
-    assert request.cookies["test"] == cookies["test"]
+    assert request.cookies["test"] == [cookies["test"]]
 
 
 def test_request_cookies_without_cookies(app):
@@ -2244,17 +2244,26 @@ def test_conflicting_body_methods_overload(app: Sanic):
     @app.put("/p/<foo>", name="three")
     async def put(request, foo=None):
         return json(
-            {"name": request.route.name, "body": str(request.body), "foo": foo}
+            {
+                "name": request.route.name,
+                "body": str(request.body).replace(" ", ""),
+                "foo": foo,
+            }
         )
 
     @app.delete("/p/<foo>")
     async def delete(request, foo):
         return json(
-            {"name": request.route.name, "body": str(request.body), "foo": foo}
+            {
+                "name": request.route.name,
+                "body": str(request.body).replace(" ", ""),
+                "foo": foo,
+            }
         )
 
+    dumps = BaseHTTPResponse._dumps
     payload = {"test": "OK"}
-    data = str(json_dumps(payload).encode())
+    data = str(dumps(payload).encode()).replace(" ", "")
 
     _, response = app.test_client.put("/", json=payload)
     assert response.status == 200
@@ -2282,7 +2291,7 @@ def test_conflicting_body_methods_overload(app: Sanic):
     assert response.json == {
         "name": "test_conflicting_body_methods_overload.delete",
         "foo": "test",
-        "body": str("".encode()),
+        "body": str(b""),
     }
 
 

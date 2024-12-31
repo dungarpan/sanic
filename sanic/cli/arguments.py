@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser, _ArgumentGroup
-from typing import List, Optional, Type, Union
+from typing import Optional, Union
 
 from sanic_routing import __version__ as __routing_version__
 
@@ -12,7 +12,7 @@ from sanic.http.constants import HTTP
 class Group:
     name: Optional[str]
     container: Union[ArgumentParser, _ArgumentGroup]
-    _registry: List[Type[Group]] = []
+    _registry: list[type[Group]] = []
 
     def __init_subclass__(cls) -> None:
         Group._registry.append(cls)
@@ -65,6 +65,21 @@ class GeneralGroup(Group):
                 "Additionally, this can be a path to a factory function\n"
                 "that returns a Sanic app instance.\n"
                 "\tExample: path.to.server:create_app\n"
+            ),
+        )
+
+        self.container.add_argument(
+            "action",
+            nargs="?",
+            default="serve",
+            choices=[
+                "serve",
+                "exec",
+            ],
+            help=(
+                "Action to perform.\n"
+                "\tserve: Run the Sanic app\n"
+                "\texec: Execute a command in the Sanic app context\n"
             ),
         )
 

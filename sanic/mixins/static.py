@@ -1,9 +1,10 @@
+from collections.abc import Sequence
 from email.utils import formatdate
 from functools import partial, wraps
 from mimetypes import guess_type
 from os import PathLike, path
 from pathlib import Path, PurePath
-from typing import Optional, Sequence, Set, Union
+from typing import Optional, Union
 from urllib.parse import unquote
 
 from sanic_routing.route import Route
@@ -23,7 +24,7 @@ from sanic.response import HTTPResponse, file, file_stream, validate_file
 
 class StaticMixin(BaseMixin, metaclass=SanicMeta):
     def __init__(self, *args, **kwargs) -> None:
-        self._future_statics: Set[FutureStatic] = set()
+        self._future_statics: set[FutureStatic] = set()
 
     def _apply_static(self, static: FutureStatic) -> Route:
         raise NotImplementedError  # noqa
@@ -179,15 +180,16 @@ class StaticHandleMixin(metaclass=SanicMeta):
         Register a static directory handler with Sanic by adding a route to the
         router and registering a handler.
         """
+        file_or_directory: PathLike
 
         if isinstance(static.file_or_directory, bytes):
-            file_or_directory = static.file_or_directory.decode("utf-8")
+            file_or_directory = Path(static.file_or_directory.decode("utf-8"))
         elif isinstance(static.file_or_directory, PurePath):
-            file_or_directory = str(static.file_or_directory)
-        elif not isinstance(static.file_or_directory, str):
-            raise ValueError("Invalid file path string.")
-        else:
             file_or_directory = static.file_or_directory
+        elif isinstance(static.file_or_directory, str):
+            file_or_directory = Path(static.file_or_directory)
+        else:
+            raise ValueError("Invalid file path string.")
 
         uri = static.uri
         name = static.name
@@ -224,7 +226,7 @@ class StaticHandleMixin(metaclass=SanicMeta):
         _handler = wraps(self._static_request_handler)(
             partial(
                 self._static_request_handler,
-                file_or_directory=file_or_directory,
+                file_or_directory=str(file_or_directory),
                 use_modified_since=static.use_modified_since,
                 use_content_range=static.use_content_range,
                 stream_large_files=static.stream_large_files,
@@ -248,7 +250,7 @@ class StaticHandleMixin(metaclass=SanicMeta):
         self,
         request: Request,
         *,
-        file_or_directory: PathLike,
+        file_or_directory: str,
         use_modified_since: bool,
         use_content_range: bool,
         stream_large_files: Union[bool, int],
@@ -258,7 +260,7 @@ class StaticHandleMixin(metaclass=SanicMeta):
     ):
         not_found = FileNotFound(
             "File not found",
-            path=file_or_directory,
+            path=Path(file_or_directory),
             relative_url=__file_uri__,
         )
 
