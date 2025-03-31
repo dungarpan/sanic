@@ -16,12 +16,12 @@ from websockets.exceptions import (
 from websockets.frames import Frame, Opcode
 
 
-try:  # websockets < 11.0
-    from websockets.connection import Event, State  # type: ignore
-    from websockets.server import ServerConnection as ServerProtocol
-except ImportError:  # websockets >= 11.0
+try:  # websockets >= 11.0
     from websockets.protocol import Event, State  # type: ignore
     from websockets.server import ServerProtocol  # type: ignore
+except ImportError:  # websockets < 11.0
+    from websockets.connection import Event, State  # type: ignore
+    from websockets.server import ServerConnection as ServerProtocol
 
 from websockets.typing import Data
 
@@ -425,7 +425,13 @@ class WebsocketImplProtocol:
                         return
         except asyncio.CancelledError:
             ...
+        except BaseException:
+            websockets_logger.exception("Error closing websocket connection")
         finally:
+            # Does this still exist?
+            if self.keepalive_ping_task:
+                self.keepalive_ping_task.cancel()
+                self.keepalive_ping_task = None
             # The try/finally ensures that the transport never remains open,
             # even if this coroutine is cancelled (for example).
             if (not self.io_proto) or (not self.io_proto.transport):
